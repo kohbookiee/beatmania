@@ -53,7 +53,7 @@ function loadFacePhoto() {
       for (const waiter of waiters) waiter()
       resolve()
     }
-    image.src = '/textures/face.jpg'
+    image.src = `${import.meta.env.BASE_URL}textures/face.jpg`
   })
   return loading
 }
