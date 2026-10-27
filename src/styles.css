@@ -508,10 +508,32 @@ body .patch-title strong {
   font-size: 11px;
 }
 
-.patch-actions {
+.action-bar {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
+  width: 100%;
+  margin-top: 8px;
+  pointer-events: auto;
+}
+
+.shuffle-cue {
+  display: none;
+}
+
+.action-bar .action-btn {
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f4f1ea;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.action-bar .action-btn:disabled {
+  opacity: 0.38;
 }
 
 .patch-actions .action-btn {
@@ -1147,6 +1169,133 @@ body .bpm-name {
 
   .move-log {
     height: 72px;
+  }
+}
+
+@keyframes beat-fall {
+  from {
+    transform: translateY(-36px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes cue-pulse {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@media (min-width: 1101px) {
+  .workspace {
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "stage";
+    padding-bottom: 92px;
+  }
+
+  .score-dock {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    z-index: 5;
+    width: 112px;
+    height: min(30vh, 240px);
+    transform: translateX(-50%);
+    align-items: stretch;
+    justify-content: flex-start;
+    overflow: hidden;
+    pointer-events: none;
+    mask-image: linear-gradient(to bottom, #000 72%, transparent);
+  }
+
+  .score-dock .score-tape {
+    height: 100%;
+    align-items: stretch;
+    justify-content: flex-start;
+    border-top: 0;
+    background: transparent;
+    padding: 0;
+  }
+
+  .score-dock .score-tape ol {
+    flex-direction: column-reverse;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .score-dock .beat-stack {
+    width: 96px;
+  }
+
+  .score-dock .beat.is-drop {
+    animation: beat-fall 0.42s cubic-bezier(0.16, 0.84, 0.32, 1) both;
+  }
+
+  .action-bar {
+    position: fixed;
+    left: 50%;
+    bottom: 22px;
+    z-index: 8;
+    width: max-content;
+    margin: 0;
+    transform: translateX(-50%);
+    grid-template-columns: repeat(4, 142px);
+    gap: 10px;
+  }
+
+  .shuffle-cue {
+    display: block;
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 14px);
+    width: max-content;
+    max-width: 520px;
+    margin: 0;
+    transform: translateX(-50%);
+    color: #f4f1ea;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 1.35;
+    text-align: center;
+  }
+
+  .action-bar .action-btn {
+    height: 52px;
+    border: 2px solid #f4f1ea;
+    border-radius: 14px;
+    background: #f4f1ea;
+    color: #111111;
+    font-size: 14px;
+    letter-spacing: 0.1em;
+  }
+
+  .action-bar .action-btn:hover {
+    border-color: #ffe500;
+    background: #ffe500;
+  }
+
+  .action-bar .action-btn.is-cue {
+    border-color: #ffe500;
+    background: #ffe500;
+    animation: cue-pulse 1.3s ease-in-out infinite;
+  }
+
+  .action-bar .action-btn.is-on {
+    border-color: #7dff6a;
+    background: #111111;
+    color: #7dff6a;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .score-dock .beat.is-drop,
+  .action-bar .action-btn.is-cue {
+    animation: none;
   }
 }
 
@@ -1871,9 +2020,24 @@ body .bpm-name {
     -webkit-backdrop-filter: none;
   }
 
-  .patch-actions .play-btn,
-  .patch-actions .action-btn {
+  .action-bar {
+    position: static;
+    left: auto;
+    bottom: auto;
+    transform: none;
+    width: 100%;
+    margin-top: 6px;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+
+  .action-bar .action-btn {
     height: 30px;
+    font-size: 11px;
+  }
+
+  .shuffle-cue {
+    display: none;
   }
 
   .workspace .bpm-rail,

@@ -31,6 +31,12 @@ function pitchColor(note) {
 
 const READOUT_IDS = ['TEMPO', 'PHASE', 'NOTES', 'VOICE', 'BEAT']
 
+const CUE = {
+  shuffle: 'Click SHUFFLE. The cube turns, and every move becomes a note.',
+  watch: 'Watch the cube. Each face plays one note.',
+  play: 'Press PLAY to hear that song again.',
+}
+
 function MeterCard({ label, value, detail, live }) {
   return (
     <article className={live ? 'meter-card is-live' : 'meter-card'}>
@@ -141,6 +147,8 @@ export default function ControlPanel({ children }) {
   const [bpm, setTempo] = useState(getBpm)
   const [order, setOrder] = useState(READOUT_IDS)
   const [focus, setFocus] = useState(null)
+  const [guide, setGuide] = useState('shuffle')
+  const sawShuffle = useRef(false)
   const bpmSeen = useRef(bpm)
   const handsOn = Boolean(anim) && !playing
   const played = playing && playStep >= 0 ? history[playStep] : null
@@ -170,6 +178,43 @@ export default function ControlPanel({ children }) {
     if (same) bringForward(['VOICE', 'PHASE', 'NOTES', 'BEAT'])
     else bringForward(['PHASE', 'NOTES', 'VOICE', 'BEAT'])
   }, [handsOn, playing, anim?.notation, playStep, history, live?.note, played?.note])
+
+  useEffect(() => {
+    if (guide !== 'watch') return undefined
+    if (anim) sawShuffle.current = true
+    if (sawShuffle.current && !anim) setGuide('play')
+    return undefined
+  }, [guide, anim])
+
+  useEffect(() => {
+    if (guide === 'play' && history.length === 0 && !anim) setGuide('shuffle')
+  }, [guide, history.length, anim])
+
+  function onShuffle() {
+    if (playing || solving || anim) return
+    if (guide === 'shuffle') {
+      sawShuffle.current = false
+      setGuide('watch')
+    }
+    shuffle()
+  }
+
+  function onPlay() {
+    if (playing) {
+      stop()
+      return
+    }
+    if (guide === 'play') setGuide('done')
+    play()
+  }
+
+  function onReset() {
+    reset()
+    if (guide !== 'done') {
+      sawShuffle.current = false
+      setGuide('shuffle')
+    }
+  }
 
   function changeBpm(value) {
     const next = setBpm(value)
@@ -232,34 +277,39 @@ export default function ControlPanel({ children }) {
                 </button>
               ))}
             </div>
-            <div className="patch-actions">
-              <button
-                type="button"
-                className={playing ? 'action-btn play-btn is-on' : 'action-btn play-btn'}
-                onClick={() => (playing ? stop() : play())}
-                disabled={!playing && history.length === 0}
-                aria-pressed={playing}
-              >
-                {playing ? 'STOP' : 'PLAY'}
-              </button>
-              <button type="button" className="action-btn" onClick={reset}>
-                RESET
-              </button>
-              <button type="button" className="action-btn" onClick={shuffle}>
-                SHUFFLE
-              </button>
-              <button
-                type="button"
-                className={solving ? 'action-btn answer-btn is-on' : 'action-btn answer-btn'}
-                onClick={playAnswer}
-                disabled={playing || solving}
-                aria-pressed={solving}
-              >
-                SOLVE CUBE
-              </button>
-            </div>
           </section>
         </footer>
+        <div className="action-bar">
+          {guide !== 'done' && <p className="shuffle-cue">{CUE[guide]}</p>}
+          <button
+            type="button"
+            className={playing ? 'action-btn play-btn is-on' : guide === 'play' ? 'action-btn play-btn is-cue' : 'action-btn play-btn'}
+            onClick={onPlay}
+            disabled={!playing && history.length === 0}
+            aria-pressed={playing}
+          >
+            {playing ? 'STOP' : 'PLAY'}
+          </button>
+          <button type="button" className="action-btn" onClick={onReset}>
+            RESET
+          </button>
+          <button
+            type="button"
+            className={guide === 'shuffle' ? 'action-btn is-cue' : 'action-btn'}
+            onClick={onShuffle}
+          >
+            SHUFFLE
+          </button>
+          <button
+            type="button"
+            className={solving ? 'action-btn answer-btn is-on' : 'action-btn answer-btn'}
+            onClick={playAnswer}
+            disabled={playing || solving}
+            aria-pressed={solving}
+          >
+            SOLVE CUBE
+          </button>
+        </div>
         </aside>
       </aside>
 
@@ -272,7 +322,7 @@ export default function ControlPanel({ children }) {
               {group.items.map((item) => (
                 <div
                   key={item.entry.order}
-                  className={item.live ? 'beat is-live' : playStep === item.index ? 'beat is-on' : 'beat'}
+                  className={`beat is-drop${item.live ? ' is-live' : ''}${playStep === item.index ? ' is-on' : ''}`}
                   style={{ color: pitchColor(item.entry.note) }}
                   aria-current={playStep === item.index ? 'step' : undefined}
                 >
