@@ -1190,7 +1190,12 @@ body .bpm-name {
 
 @media (min-width: 1101px) {
   .header {
-    padding-top: 58px;
+    padding-top: 66px;
+  }
+
+  body .title {
+    font-size: clamp(28px, 2.8vw, 48px);
+    -webkit-text-stroke: 6px #d8d8d8;
   }
 
   .workspace {
@@ -1204,16 +1209,16 @@ body .bpm-name {
     top: 0;
     left: 0;
     right: 0;
-    z-index: 12;
+    z-index: 60;
     width: auto;
     height: auto;
-    max-height: 72px;
+    max-height: none;
     transform: none;
     align-items: flex-start;
     justify-content: center;
-    overflow: hidden;
+    overflow: visible;
     pointer-events: none;
-    mask-image: linear-gradient(to bottom, #000 62%, transparent);
+    mask-image: none;
   }
 
   .score-dock .score-tape {
@@ -1222,7 +1227,8 @@ body .bpm-name {
     justify-content: center;
     border-top: 0;
     background: transparent;
-    padding: 6px 20px 0;
+    padding: 8px 20px 0;
+    overflow: visible;
   }
 
   .score-dock .score-tape ol {
@@ -1231,7 +1237,7 @@ body .bpm-name {
     justify-content: center;
     height: auto;
     gap: 4px;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .score-dock .beat-stack {
@@ -1257,13 +1263,13 @@ body .bpm-name {
 
   .action-bar {
     position: fixed;
-    left: 28px;
-    right: 312px;
+    left: 50%;
+    right: auto;
     bottom: 18px;
     z-index: 8;
-    width: auto;
+    width: max-content;
     margin: 0;
-    transform: none;
+    transform: translateX(-50%);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -1292,30 +1298,32 @@ body .bpm-name {
     height: 42px;
     min-width: 118px;
     padding: 0 18px;
-    border: 1.5px solid rgba(244, 241, 234, 0.92);
+    border: 1.5px solid #7dff6a;
     border-radius: 999px;
-    background: rgba(0, 0, 0, 0.55);
-    color: #f4f1ea;
+    background: transparent;
+    color: #7dff6a;
     font-size: 13px;
     letter-spacing: 0.12em;
   }
 
-  .action-bar .action-btn:hover {
-    border-color: #ffe500;
-    color: #ffe500;
+  .action-bar .action-btn.is-cue {
+    border-color: #7dff6a;
+    background: transparent;
+    color: #7dff6a;
+    animation: cue-pulse 1.3s ease-in-out infinite;
   }
 
-  .action-bar .action-btn.is-cue {
-    border-color: #ffe500;
-    background: #ffe500;
+  .action-bar .action-btn:hover:not(:disabled),
+  .action-bar .action-btn.is-cue:hover:not(:disabled) {
+    border-color: #7dff6a;
+    background: #7dff6a;
     color: #111111;
-    animation: cue-pulse 1.3s ease-in-out infinite;
   }
 
   .action-bar .action-btn.is-on {
     border-color: #7dff6a;
-    background: #111111;
-    color: #7dff6a;
+    background: #7dff6a;
+    color: #111111;
   }
 }
 
