@@ -2010,8 +2010,12 @@ body .bpm-name {
   }
 
   .puzzle-sequence {
-    min-height: 48px;
-    height: 48px;
+    min-height: 220px;
+    height: 220px;
+  }
+
+  .puzzle-sequence .roll {
+    min-height: 160px;
   }
 
   .puzzle-path {
