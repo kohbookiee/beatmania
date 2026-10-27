@@ -93,6 +93,18 @@ export function orbitDots(cubies, partial) {
   return dots
 }
 
+const RING_TURN = {
+  x: { 1: ['R', "R'"], 0: ["M'", 'M'], '-1': ["L'", 'L'] },
+  y: { 1: ['U', "U'"], 0: ["E'", 'E'], '-1': ["D'", 'D'] },
+  z: { 1: ["F'", 'F'], 0: ["S'", 'S'], '-1': ['B', "B'"] },
+}
+
+export function ringTurn(axis, layer, clockwise) {
+  const pair = RING_TURN[axis]?.[layer]
+  if (!pair) return ''
+  return clockwise ? pair[0] : pair[1]
+}
+
 export function midiFor(voice) {
   return BASE[String(voice.layer)] + DEGREE[voice.n - 1]
 }

@@ -16,7 +16,7 @@ const STICKER_LAYOUT = {
 }
 
 const RODS = []
-const ROD_THICKNESS = 0.03
+const ROD_THICKNESS = 0.02
 const OUTER = 1
 const ROD_CENTER = OUTER / 2 - ROD_THICKNESS / 2
 for (const y of [-ROD_CENTER, ROD_CENTER]) {

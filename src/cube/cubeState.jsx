@@ -1,14 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { hitFor } from '../audio/kit.js'
+import { hitFor, stepSeconds } from '../audio/kit.js'
 import { playHit, silence, startLoop, stopLoop, unlockAudio } from '../audio/permutationSound.js'
 import {
   MOVES,
   applyMove,
+  applySequence,
   cloneCube,
   createSolvedCube,
   cubeSignature,
   describeMove,
   generateScramble,
+  inverseMove,
   getFaceGrids,
   validateCube,
 } from './cubeLogic.js'
@@ -16,18 +18,25 @@ import {
 const CubeContext = createContext(null)
 
 const TURN_DURATION = 0.34
-const PLAYBACK_DURATION = 0.28
-const SHUFFLE_DURATION = 0.1
 const SHUFFLE_LENGTH = 20
 const QUEUE_LIMIT = 24
 
+function dealPuzzle() {
+  const moves = generateScramble(SHUFFLE_LENGTH)
+  return { cube: applySequence(createSolvedCube(), moves), moves }
+}
+
 export function CubeProvider({ children }) {
-  const [cubies, setCubies] = useState(createSolvedCube)
+  const [deal] = useState(dealPuzzle)
+  const puzzle = deal.cube
+  const answerMoves = useMemo(() => deal.moves.slice().reverse().map(inverseMove), [deal])
+  const [cubies, setCubies] = useState(() => cloneCube(puzzle))
   const [history, setHistory] = useState([])
   const [anim, setAnim] = useState(null)
   const [caption, setCaption] = useState('')
   const [playing, setPlaying] = useState(false)
   const [playStep, setPlayStep] = useState(-1)
+  const [solving, setSolving] = useState(false)
 
   const cubiesRef = useRef(cubies)
   const historyRef = useRef(history)
@@ -37,6 +46,8 @@ export function CubeProvider({ children }) {
   const idRef = useRef(0)
   const pendingRef = useRef(null)
   const playingRef = useRef(false)
+  const solvingRef = useRef(false)
+  const finishRef = useRef(() => {})
   const patternRef = useRef([])
   const spinRef = useRef({
     base: { x: 0, y: 0, z: 0 },
@@ -58,18 +69,25 @@ export function CubeProvider({ children }) {
     setCaption(next.notation)
     if (!next.silent) playHit(hit)
     pendingRef.current = next.record === false ? null : { id: idRef.current, hit }
+    const animId = idRef.current
+    const generation = generationRef.current
+    const notation = next.notation
     setAnim({
-      id: idRef.current,
-      generation: generationRef.current,
-      notation: next.notation,
+      id: animId,
+      generation,
+      notation,
       duration: next.duration,
-      axis: MOVES[next.notation].axis,
-      layer: MOVES[next.notation].layer,
-      dir: MOVES[next.notation].dir,
+      axis: MOVES[notation].axis,
+      layer: MOVES[notation].layer,
+      dir: MOVES[notation].dir,
     })
+    window.setTimeout(() => {
+      finishRef.current(animId, notation, generation)
+    }, Math.max(0, next.duration) * 1000 + 40)
   }, [])
 
   const enqueue = useCallback((notation, duration = TURN_DURATION, options = {}) => {
+    if (solvingRef.current) return
     if (!MOVES[notation]) return
     if (playingRef.current && options.record !== false) return
     if (queueRef.current.length >= QUEUE_LIMIT) return
@@ -83,14 +101,19 @@ export function CubeProvider({ children }) {
     startNext()
   }, [startNext])
 
+  const notifySpin = () => {
+    spinRef.current.onChange?.()
+  }
+
   const reportSpin = useCallback((generation, axis, layer, dir, progress) => {
     if (generation !== generationRef.current) return
     spinRef.current.partial = { axis, layer, dir, progress }
+    notifySpin()
   }, [])
 
   const finishAnimation = useCallback((id, notation, generation) => {
     if (generation !== generationRef.current) return
-    if (!animatingRef.current) return
+    if (!animatingRef.current || id !== idRef.current) return
     const move = MOVES[notation]
     spinRef.current.base[move.axis] += move.dir * 90
     spinRef.current.partial = null
@@ -99,6 +122,7 @@ export function CubeProvider({ children }) {
     pendingRef.current = null
     cubiesRef.current = nextCube
     animatingRef.current = false
+    notifySpin()
     setCubies(nextCube)
     if (pending && pending.id === id) {
       const record = {
@@ -113,9 +137,17 @@ export function CubeProvider({ children }) {
       historyRef.current = nextHistory
       setHistory(nextHistory)
     }
-    if (queueRef.current.length === 0) setAnim(null)
+    if (queueRef.current.length === 0) {
+      setAnim(null)
+      if (solvingRef.current) {
+        solvingRef.current = false
+        setSolving(false)
+      }
+    }
     startNext()
   }, [startNext])
+
+  finishRef.current = finishAnimation
 
   const clearSpin = () => {
     spinRef.current.base.x = 0
@@ -123,6 +155,7 @@ export function CubeProvider({ children }) {
     spinRef.current.base.z = 0
     spinRef.current.partial = null
     spinRef.current.notation = ''
+    notifySpin()
   }
 
   const rewind = useCallback(() => {
@@ -140,6 +173,8 @@ export function CubeProvider({ children }) {
 
   const stop = useCallback(() => {
     playingRef.current = false
+    solvingRef.current = false
+    setSolving(false)
     stopLoop()
     silence()
     generationRef.current += 1
@@ -166,11 +201,11 @@ export function CubeProvider({ children }) {
     if (index === 0) rewind()
     setPlayStep(index)
     setCaption(hit.notation)
-    enqueue(hit.notation, PLAYBACK_DURATION, { silent: true, record: false })
+    enqueue(hit.notation, stepSeconds(), { silent: true, record: false })
   }, [enqueue, rewind])
 
   const play = useCallback(() => {
-    if (playingRef.current) return
+    if (playingRef.current || solvingRef.current) return
     if (historyRef.current.length === 0) return
     if (animatingRef.current || queueRef.current.length > 0) return
     patternRef.current = historyRef.current.map((entry) => ({
@@ -187,6 +222,8 @@ export function CubeProvider({ children }) {
 
   const reset = useCallback(() => {
     playingRef.current = false
+    solvingRef.current = false
+    setSolving(false)
     stopLoop()
     silence()
     generationRef.current += 1
@@ -197,21 +234,49 @@ export function CubeProvider({ children }) {
     setCaption('')
     setPlayStep(-1)
     setPlaying(false)
-    const solved = createSolvedCube()
-    cubiesRef.current = solved
+    const restored = cloneCube(puzzle)
+    cubiesRef.current = restored
     historyRef.current = []
-    setCubies(solved)
+    setCubies(restored)
     setHistory([])
     setAnim(null)
-  }, [])
+  }, [puzzle])
+
+  const playAnswer = useCallback(() => {
+    if (playingRef.current || solvingRef.current) return
+    if (animatingRef.current || queueRef.current.length > 0) return
+    stopLoop()
+    silence()
+    generationRef.current += 1
+    queueRef.current = []
+    animatingRef.current = false
+    pendingRef.current = null
+    clearSpin()
+    setCaption('')
+    setPlayStep(-1)
+    setPlaying(false)
+    const restored = cloneCube(puzzle)
+    cubiesRef.current = restored
+    historyRef.current = []
+    setCubies(restored)
+    setHistory([])
+    setAnim(null)
+    solvingRef.current = true
+    setSolving(true)
+    unlockAudio()
+    for (const notation of answerMoves) {
+      queueRef.current.push({ notation, duration: stepSeconds() })
+    }
+    startNext()
+  }, [answerMoves, puzzle, startNext])
 
   const shuffle = useCallback(() => {
-    if (playingRef.current) return
+    if (playingRef.current || solvingRef.current) return
     if (animatingRef.current || queueRef.current.length > 0) return
     unlockAudio()
     const sequence = generateScramble(SHUFFLE_LENGTH)
     for (const notation of sequence) {
-      queueRef.current.push({ notation, duration: SHUFFLE_DURATION })
+      queueRef.current.push({ notation, duration: stepSeconds() })
     }
     startNext()
   }, [startNext])
@@ -260,11 +325,29 @@ export function CubeProvider({ children }) {
       stop,
       reset,
       shuffle,
+      playAnswer,
     }
     return () => {
       delete window.__CHILDREN_PLAY__
     }
-  }, [enqueue, play, playStep, reset, shuffle, stop])
+  }, [enqueue, play, playAnswer, playStep, reset, shuffle, stop])
+
+  const swapPieces = useCallback((from, to) => {
+    if (!from || !to || (from.cubieId === to.cubieId && from.local === to.local)) return
+    const next = cloneCube(cubiesRef.current)
+    const stickerA = next.find((cubie) => cubie.id === from.cubieId)?.stickers.find((sticker) => sticker.local === from.local)
+    const stickerB = next.find((cubie) => cubie.id === to.cubieId)?.stickers.find((sticker) => sticker.local === to.local)
+    if (!stickerA || !stickerB) return
+    const number = stickerA.n
+    stickerA.n = stickerB.n
+    stickerB.n = number
+    const lookA = from.turn + (from.spin || 0)
+    const lookB = to.turn + (to.spin || 0)
+    stickerA.spin = ((lookB - from.turn) % 4 + 4) % 4
+    stickerB.spin = ((lookA - to.turn) % 4 + 4) % 4
+    cubiesRef.current = next
+    setCubies(next)
+  }, [])
 
   const value = useMemo(() => ({
     cubies,
@@ -283,7 +366,10 @@ export function CubeProvider({ children }) {
     stop,
     reset,
     shuffle,
-  }), [cubies, history, anim, caption, playing, playStep, enqueue, reportSpin, finishAnimation, play, stop, reset, shuffle])
+    solving,
+    playAnswer,
+    swapPieces,
+  }), [cubies, history, anim, caption, playing, playStep, solving, enqueue, reportSpin, finishAnimation, play, stop, reset, shuffle, playAnswer, swapPieces])
 
   return (
     <CubeContext.Provider value={value}>

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { MOVES, applyMove, createSolvedCube, getFaceGrids } from '../src/cube/cubeLogic.js'
-import { cycleVoices, orbitAngle, spinSign } from '../src/cube/orbits.js'
+import { cycleVoices, orbitAngle, ringTurn, spinSign } from '../src/cube/orbits.js'
 
 function wrap(delta) {
   let value = delta
@@ -39,6 +39,22 @@ test('a face cycle sounds the eight numbered stickers around that face', () => {
     const midi = voices.map((voice) => voice.midi)
     assert.equal(new Set(midi).size, 8)
   }
+})
+
+test('a clockwise drag on a ring turns that layer the same way as the cube', () => {
+  assert.equal(ringTurn('y', 1, true), 'U')
+  assert.equal(ringTurn('y', 1, false), "U'")
+  assert.equal(ringTurn('y', 0, true), "E'")
+  assert.equal(ringTurn('y', -1, true), "D'")
+  assert.equal(ringTurn('x', 1, true), 'R')
+  assert.equal(ringTurn('x', 1, false), "R'")
+  assert.equal(ringTurn('x', 0, false), 'M')
+  assert.equal(ringTurn('x', -1, false), 'L')
+  assert.equal(ringTurn('z', 1, true), "F'")
+  assert.equal(ringTurn('z', 1, false), 'F')
+  assert.equal(ringTurn('z', 0, true), "S'")
+  assert.equal(ringTurn('z', -1, true), 'B')
+  assert.equal(ringTurn('z', 2, true), '')
 })
 
 test('the opposite turn reverses the order of the same cycle', () => {

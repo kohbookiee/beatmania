@@ -1,6 +1,6 @@
 import { Preload } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { moveFromDrag } from '../cube/cubeLogic.js'
 import { useCube } from '../cube/cubeState.jsx'
@@ -13,7 +13,7 @@ const spherical = new THREE.Spherical()
 
 function fitRadius(aspect) {
   const tan = Math.tan((FOV * Math.PI) / 180 / 2)
-  const span = aspect >= 1 ? 7.15 : 7.15 / aspect
+  const span = 9.2 / Math.min(aspect, 1)
   return span / (2 * tan)
 }
 
@@ -27,19 +27,24 @@ function snapOutward(vector) {
 }
 
 function CameraRig({ orbitRef }) {
-  const { camera, size } = useThree()
-  useFrame(() => {
+  const { camera, size, invalidate } = useThree()
+  const apply = () => {
     const aspect = size.width / Math.max(1, size.height)
     const { theta, phi, zoom } = orbitRef.current
     spherical.set(fitRadius(aspect) * zoom, phi, theta)
     camera.position.setFromSpherical(spherical)
     camera.lookAt(0, 0, 0)
-  })
+  }
+  useLayoutEffect(() => {
+    apply()
+    invalidate()
+  }, [size.width, size.height])
+  useFrame(apply)
   return null
 }
 
 function PointerRig({ cubeRef, orbitRef }) {
-  const { camera, gl } = useThree()
+  const { camera, gl, invalidate } = useThree()
   const { cubies, anim, enqueue } = useCube()
   const cubiesRef = useRef(cubies)
   const animRef = useRef(anim)
@@ -122,10 +127,6 @@ function PointerRig({ cubeRef, orbitRef }) {
     }
 
     function onPointerMove(event) {
-      if (!gesture.mode) {
-        const hit = pick(event)
-        element.style.cursor = hit ? 'pointer' : 'grab'
-      }
       if (gesture.mode === 'orbit') {
         const dx = event.clientX - gesture.x
         const dy = event.clientY - gesture.y
@@ -133,6 +134,7 @@ function PointerRig({ cubeRef, orbitRef }) {
         const nextPhi = gesture.phi + dy * 0.0052
         orbitRef.current.phi = Math.min(Math.PI - 0.16, Math.max(0.16, nextPhi))
         element.style.cursor = 'grabbing'
+        invalidate()
         return
       }
       if (gesture.mode !== 'pending-twist') return
@@ -155,6 +157,7 @@ function PointerRig({ cubeRef, orbitRef }) {
       event.preventDefault()
       const direction = event.deltaY > 0 ? 1.07 : 0.935
       orbitRef.current.zoom = Math.min(1.45, Math.max(0.86, orbitRef.current.zoom * direction))
+      invalidate()
     }
 
     element.addEventListener('pointerdown', onPointerDown)
@@ -169,7 +172,7 @@ function PointerRig({ cubeRef, orbitRef }) {
       element.removeEventListener('pointercancel', onPointerUp)
       element.removeEventListener('wheel', onWheel)
     }
-  }, [camera, cubeRef, enqueue, gl, orbitRef])
+  }, [camera, cubeRef, enqueue, gl, invalidate, orbitRef])
 
   return null
 }
@@ -208,8 +211,9 @@ export default function CubeScene() {
       <div className="cube-viewport">
         <Canvas
           camera={{ position: [HOME.x, HOME.y, HOME.z], fov: FOV, near: 0.1, far: 100 }}
-          dpr={[1, 2]}
-          gl={{ antialias: true, alpha: true }}
+          frameloop="demand"
+          dpr={[1, 1.25]}
+          gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
           onCreated={({ gl }) => {
             gl.setClearColor(0x000000, 0)
             gl.toneMapping = THREE.NoToneMapping
@@ -218,7 +222,7 @@ export default function CubeScene() {
           <ambientLight intensity={0.78} />
           <directionalLight position={[5, 7, 4]} intensity={0.72} />
           <directionalLight position={[-4, 2, -3]} intensity={0.28} />
-          <group ref={cubeRef} scale={1.3}>
+          <group ref={cubeRef} scale={1.75}>
             <RubiksCube />
           </group>
           <CameraRig orbitRef={orbitRef} />

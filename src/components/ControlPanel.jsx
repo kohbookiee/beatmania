@@ -1,121 +1,290 @@
-import { useEffect, useRef } from 'react'
-import { BPM, COMPOSITION_TITLE } from '../audio/kit.js'
+import { useEffect, useRef, useState } from 'react'
+import { BPM_MAX, BPM_MIN, getBpm, hitFor, setBpm, subscribeBpm } from '../audio/kit.js'
+import { followBpm } from '../audio/permutationSound.js'
 import { FACE_BUTTONS } from '../cube/cubeLogic.js'
 import { useCube } from '../cube/cubeState.jsx'
 
-const RULER = ['000', '020', '040', '060', '080', '100', '120', '140', '160', '180', '200']
+const TEMPO_MARKS = [600, 480, 360, 240, 140, 80]
 
-export default function ControlPanel() {
-  const { history, anim, moveCount, playing, playStep, enqueue, play, stop, reset, shuffle } = useCube()
-  const logRef = useRef(null)
+const PITCH_COLOR = {
+  C: '#ff5b4a',
+  'C#': '#ff8a3d',
+  D: '#f0d12e',
+  'D#': '#b6e84a',
+  E: '#3dffa6',
+  F: '#3de0ff',
+  'F#': '#4a7dff',
+  G: '#8d6bff',
+  'G#': '#d24aff',
+  A: '#ff4ad2',
+  'A#': '#ff4a86',
+  B: '#f4f1ea',
+}
+
+function pitchClass(note) {
+  return String(note || '').replace(/\d+$/, '')
+}
+
+function pitchColor(note) {
+  return PITCH_COLOR[pitchClass(note)] || '#d8d8d8'
+}
+
+const READOUT_IDS = ['TEMPO', 'PHASE', 'NOTES', 'VOICE', 'BEAT']
+
+function MeterCard({ label, value, detail, live }) {
+  return (
+    <article className={live ? 'meter-card is-live' : 'meter-card'}>
+      <span>{label}</span>
+      <b>{value}</b>
+      <em>{detail}</em>
+    </article>
+  )
+}
+
+export function TempoRail({ bpm, onChange }) {
+  const railRef = useRef(null)
+  const scaleRef = useRef(null)
+  const dragRef = useRef(false)
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
 
   useEffect(() => {
-    const node = logRef.current
-    if (!node) return
-    if (playStep >= 0) {
-      node.querySelector('.is-on')?.scrollIntoView({ block: 'nearest' })
-      return
+    const rail = railRef.current
+    const scale = scaleRef.current
+    if (!rail || !scale) return undefined
+
+    function fromPointer(event) {
+      const box = scale.getBoundingClientRect()
+      const t = Math.min(1, Math.max(0, (event.clientY - box.top) / Math.max(1, box.height)))
+      onChangeRef.current(BPM_MAX - t * (BPM_MAX - BPM_MIN))
     }
-    node.scrollTop = node.scrollHeight
-  }, [history, playStep])
+
+    function onPointerDown(event) {
+      if (event.button !== 0) return
+      dragRef.current = true
+      scale.classList.add('is-dragging')
+      try {
+        scale.setPointerCapture(event.pointerId)
+      } catch {
+        // Pointer capture is unavailable until the browser trusts the gesture.
+      }
+      fromPointer(event)
+    }
+
+    function onPointerMove(event) {
+      if (!dragRef.current) return
+      fromPointer(event)
+    }
+
+    function onPointerUp() {
+      dragRef.current = false
+      scale.classList.remove('is-dragging')
+    }
+
+    function onWheel(event) {
+      event.preventDefault()
+      const step = event.deltaY > 0 ? -10 : event.deltaY < 0 ? 10 : 0
+      if (step) onChangeRef.current(getBpm() + step)
+    }
+
+    scale.addEventListener('pointerdown', onPointerDown)
+    scale.addEventListener('pointermove', onPointerMove)
+    scale.addEventListener('pointerup', onPointerUp)
+    scale.addEventListener('pointercancel', onPointerUp)
+    rail.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      scale.removeEventListener('pointerdown', onPointerDown)
+      scale.removeEventListener('pointermove', onPointerMove)
+      scale.removeEventListener('pointerup', onPointerUp)
+      scale.removeEventListener('pointercancel', onPointerUp)
+      rail.removeEventListener('wheel', onWheel)
+    }
+  }, [])
+
+  const needle = ((BPM_MAX - bpm) / (BPM_MAX - BPM_MIN)) * 100
 
   return (
-    <footer className="panel">
-      <span className="screw screw-a" aria-hidden="true" />
-      <span className="screw screw-b" aria-hidden="true" />
-      <span className="screw screw-c" aria-hidden="true" />
-      <span className="screw screw-d" aria-hidden="true" />
-      <div className="board-ruler board-ruler-top" aria-hidden="true">
-        {RULER.map((mark) => <span key={mark}>{mark}</span>)}
+    <div className="bpm-rail" ref={railRef}>
+      <span className="bpm-name">BPM</span>
+      <p className="bpm-hint">Scroll to increase or decrease the BPM.</p>
+      <div
+        ref={scaleRef}
+        className="bpm-scale"
+        role="slider"
+        aria-label="BPM"
+        aria-valuemin={BPM_MIN}
+        aria-valuemax={BPM_MAX}
+        aria-valuenow={bpm}
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowUp') onChange(bpm + 10)
+          if (event.key === 'ArrowDown') onChange(bpm - 10)
+        }}
+      >
+        {TEMPO_MARKS.map((mark) => (
+          <span key={mark} className="bpm-tick" style={{ top: `${((BPM_MAX - mark) / (BPM_MAX - BPM_MIN)) * 100}%` }}>
+            <b>{mark}</b>
+            <i />
+          </span>
+        ))}
+        <span className="bpm-thumb" style={{ top: `${needle}%` }}>
+          <b>{bpm}</b>
+          <i />
+        </span>
       </div>
-      <div className="tick-ruler" aria-hidden="true" />
+    </div>
+  )
+}
 
-      <section className="module launch-module">
-        <h2>
-          <i className="led on" />
-          LAUNCHPAD
-        </h2>
-        <div className="move-grid">
-          {FACE_BUTTONS.map((notation) => (
-            <button
-              key={notation}
-              type="button"
-              className={anim?.notation === notation ? 'move-btn is-hot' : 'move-btn'}
-              onClick={() => enqueue(notation)}
-              aria-keyshortcuts={notation.includes("'") ? `Shift+${notation[0]}` : notation}
-            >
-              {notation}
-            </button>
+export default function ControlPanel({ children }) {
+  const { cubies, history, anim, playing, playStep, solving, enqueue, play, stop, reset, shuffle, playAnswer } = useCube()
+  const [bpm, setTempo] = useState(getBpm)
+  const [order, setOrder] = useState(READOUT_IDS)
+  const [focus, setFocus] = useState(null)
+  const bpmSeen = useRef(bpm)
+  const handsOn = Boolean(anim) && !playing
+  const played = playing && playStep >= 0 ? history[playStep] : null
+  const live = handsOn ? hitFor(anim.notation, cubies) : null
+  const shown = played || live || history[history.length - 1]
+
+  function bringForward(ids) {
+    setOrder((current) => [...ids, ...current.filter((id) => !ids.includes(id))])
+    setFocus(ids[0])
+  }
+
+  useEffect(() => subscribeBpm(setTempo), [])
+
+  useEffect(() => {
+    if (bpmSeen.current === bpm) return
+    bpmSeen.current = bpm
+    bringForward(['TEMPO'])
+  }, [bpm])
+
+  useEffect(() => {
+    if (!handsOn && !playing) return
+    const current = handsOn ? live?.note : played?.note
+    const previous = handsOn
+      ? history[history.length - 1]?.note
+      : playStep > 0 ? history[playStep - 1]?.note : ''
+    const same = pitchClass(current) !== '' && pitchClass(current) === pitchClass(previous)
+    if (same) bringForward(['VOICE', 'PHASE', 'NOTES', 'BEAT'])
+    else bringForward(['PHASE', 'NOTES', 'VOICE', 'BEAT'])
+  }, [handsOn, playing, anim?.notation, playStep, history, live?.note, played?.note])
+
+  function changeBpm(value) {
+    const next = setBpm(value)
+    followBpm(next)
+  }
+
+  const beatItems = history.map((entry, index) => ({ entry, index, live: false }))
+  if (handsOn) beatItems.push({ entry: { notation: anim.notation, note: live?.note || 'LIVE', order: 'live' }, index: -1, live: true })
+  const beatGroups = []
+  for (const item of beatItems) {
+    const pitch = String(item.entry.note || '').replace(/\d+$/, '')
+    const last = beatGroups[beatGroups.length - 1]
+    if (last && pitch && last.pitch === pitch) last.items.unshift(item)
+    else beatGroups.push({ pitch, items: [item] })
+  }
+
+  function readoutFor(id) {
+    if (id === 'TEMPO') return { label: 'TEMPO', value: String(bpm), detail: 'bpm' }
+    if (id === 'PHASE') return { label: 'PHASE', value: shown?.notation || '—', detail: shown?.prime ? 'CCW' : shown ? 'CW' : 'idle' }
+    if (id === 'NOTES') return { label: 'NOTES', value: shown?.note || '—', detail: 'pitch' }
+    if (id === 'VOICE') return { label: 'VOICE', value: shown?.voice || '—', detail: 'kit' }
+    return {
+      label: 'BEAT',
+      value: playing ? String(playStep + 1).padStart(2, '0') : String(history.length).padStart(2, '0'),
+      detail: 'now',
+    }
+  }
+
+  return (
+    <div className="workspace">
+      <TempoRail bpm={bpm} onChange={changeBpm} />
+
+      <div className="workspace-center">
+        {children}
+      </div>
+
+      <aside className="side-stack">
+        <div className="readout-stack" aria-label="Patch readout">
+          {order.map((id) => (
+            <MeterCard key={id} {...readoutFor(id)} live={id === focus} />
           ))}
         </div>
-      </section>
+        <aside className="pad-dock">
+        <footer className="panel" aria-label="MIDI controller">
+          <section className="patch-core">
+            <header className="patch-title">
+              <strong>MIDI CONTROLLER</strong>
+              <i className="midi-led" aria-hidden="true" />
+            </header>
+            <div className="move-grid">
+              {FACE_BUTTONS.map((notation) => (
+                <button
+                  key={notation}
+                  type="button"
+                  className={anim?.notation === notation ? 'move-btn is-hot' : 'move-btn'}
+                  onClick={() => enqueue(notation)}
+                  aria-keyshortcuts={notation.includes("'") ? `Shift+${notation[0]}` : notation}
+                >
+                  {notation}
+                </button>
+              ))}
+            </div>
+            <div className="patch-actions">
+              <button
+                type="button"
+                className={playing ? 'action-btn play-btn is-on' : 'action-btn play-btn'}
+                onClick={() => (playing ? stop() : play())}
+                disabled={!playing && history.length === 0}
+                aria-pressed={playing}
+              >
+                {playing ? 'STOP' : 'PLAY'}
+              </button>
+              <button type="button" className="action-btn" onClick={reset}>
+                RESET
+              </button>
+              <button type="button" className="action-btn" onClick={shuffle}>
+                SHUFFLE
+              </button>
+              <button
+                type="button"
+                className={solving ? 'action-btn answer-btn is-on' : 'action-btn answer-btn'}
+                onClick={playAnswer}
+                disabled={playing || solving}
+                aria-pressed={solving}
+              >
+                SOLVE CUBE
+              </button>
+            </div>
+          </section>
+        </footer>
+        </aside>
+      </aside>
 
-      <section className="module">
-        <h2>
-          <i className={playing ? 'led on' : 'led'} />
-          COMPOSITION
-        </h2>
-        <div className="score-head">
-          <div className="score-name">
-            <strong>{COMPOSITION_TITLE}</strong>
-            <span>{BPM} BPM</span>
-          </div>
-          <button
-            type="button"
-            className={playing ? 'action-btn play-btn is-on' : 'action-btn play-btn'}
-            onClick={() => (playing ? stop() : play())}
-            disabled={!playing && history.length === 0}
-            aria-pressed={playing}
-          >
-            {playing ? 'STOP' : 'PLAY'}
-          </button>
-        </div>
-        <ol className="move-log score-list" ref={logRef} aria-label="Composition">
-          {history.length === 0 && <li className="log-empty">NO MOVES</li>}
-          {history.map((entry, index) => (
-            <li key={entry.order} className={playStep === index ? 'is-on' : undefined} aria-current={playStep === index ? 'step' : undefined}>
-              <b>{entry.notation}</b>
-              <span>{entry.voice}</span>
+      <div className="score-dock">
+        <div className="score-tape">
+        <ol aria-label="Recorded beats">
+          {beatGroups.length === 0 && <li className="beat beat-empty">NO BEATS</li>}
+          {beatGroups.map((group) => (
+            <li key={group.items[group.items.length - 1].entry.order} className="beat-stack">
+              {group.items.map((item) => (
+                <div
+                  key={item.entry.order}
+                  className={item.live ? 'beat is-live' : playStep === item.index ? 'beat is-on' : 'beat'}
+                  style={{ color: pitchColor(item.entry.note) }}
+                  aria-current={playStep === item.index ? 'step' : undefined}
+                >
+                  <b>{item.entry.notation}</b>
+                  <span>{item.entry.note}</span>
+                </div>
+              ))}
             </li>
           ))}
         </ol>
-      </section>
-
-      <section className="module system-module">
-        <h2>
-          <i className="led on" />
-          SYSTEM
-        </h2>
-        <div className="system-actions">
-          <button type="button" className="action-btn" onClick={reset}>
-            RESET
-          </button>
-          <button type="button" className="action-btn" onClick={shuffle}>
-            SHUFFLE
-          </button>
         </div>
-        <div className="view-mode">
-          <span className="view-mode-label">VIEW MODE</span>
-          <div className="view-mode-options">
-            <button type="button" className="mode-pill is-active" aria-pressed="true">
-              <i className="led on" />
-              3D
-            </button>
-            <button type="button" className="mode-pill" disabled>
-              <i className="led" />
-              2D
-              <small>SOON</small>
-            </button>
-          </div>
-        </div>
-        <div className="move-count">
-          <span>MOVE COUNT</span>
-          <strong>{String(moveCount).padStart(3, '0')}</strong>
-        </div>
-      </section>
-      <div className="board-ruler board-ruler-bottom" aria-hidden="true">
-        {RULER.map((mark) => <span key={mark}>{mark}</span>)}
       </div>
-    </footer>
+    </div>
   )
 }

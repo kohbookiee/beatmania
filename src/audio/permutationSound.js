@@ -1,5 +1,5 @@
 import * as Tone from 'tone'
-import { BPM } from './kit.js'
+import { getBpm } from './kit.js'
 import { emitPulse } from './pulse.js'
 
 const bus = new Tone.Compressor({ threshold: -14, ratio: 4, attack: 0.003, release: 0.1 })
@@ -153,6 +153,15 @@ export function playHit(hit, time) {
   trigger(hit, time ?? Tone.now() + 0.01)
 }
 
+export function followBpm(value) {
+  if (loopId !== null) Tone.Transport.bpm.value = value
+}
+
+export function loopBeat() {
+  if (loopId === null || Tone.Transport.state !== 'started') return -1
+  return (Tone.Transport.seconds * Tone.Transport.bpm.value) / 60
+}
+
 export function stopLoop() {
   if (loopId !== null) {
     Tone.Transport.clear(loopId)
@@ -168,7 +177,7 @@ export async function startLoop(pattern, onStep) {
   await unlockAudio()
   stopLoop()
   let step = 0
-  Tone.Transport.bpm.value = BPM
+  Tone.Transport.bpm.value = getBpm()
   loopId = Tone.Transport.scheduleRepeat((time) => {
     const index = step % pattern.length
     step += 1

@@ -1,5 +1,5 @@
-import { useFrame } from '@react-three/fiber'
-import { useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
+import { useLayoutEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { useCube } from '../cube/cubeState.jsx'
 import Cubie from './Cubie.jsx'
@@ -19,6 +19,11 @@ function LayerTurn({ anim, onDone, onSpin, children }) {
   const group = useRef(null)
   const started = useRef(null)
   const finished = useRef(false)
+  const invalidate = useThree((state) => state.invalidate)
+
+  useLayoutEffect(() => {
+    invalidate()
+  }, [invalidate])
 
   useFrame((state) => {
     if (!group.current || finished.current) return
@@ -31,7 +36,9 @@ function LayerTurn({ anim, onDone, onSpin, children }) {
     if (raw >= 1) {
       finished.current = true
       onDone(anim.id, anim.notation, anim.generation)
+      return
     }
+    state.invalidate()
   })
 
   return <group ref={group}>{children}</group>
