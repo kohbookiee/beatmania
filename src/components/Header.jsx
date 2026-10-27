@@ -2,10 +2,6 @@ import { useLayoutEffect, useRef } from 'react'
 
 const TITLE = 'beat mania'
 
-function face(turn) {
-  return `rotateY(${turn}deg)`
-}
-
 export default function Header({ view, onView }) {
   const titleRef = useRef(null)
 
@@ -25,16 +21,16 @@ export default function Header({ view, onView }) {
       return undefined
     }
 
-    const spin = letters.map((_, index) => (index % 2 === 0 ? 360 : -360))
     let frame = 0
     let timer = 0
 
     const reset = () => {
       title.style.transition = 'none'
       title.style.transform = ''
-      letters.forEach((letter, index) => {
+      letters.forEach((letter) => {
         letter.style.transition = 'none'
-        letter.style.transform = face(spin[index])
+        letter.style.animation = 'none'
+        letter.style.transform = 'none'
       })
     }
 
@@ -54,9 +50,9 @@ export default function Header({ view, onView }) {
         const timing = 'transform 1.8s cubic-bezier(0.45, 0.05, 0.55, 0.95)'
         title.style.transition = timing
         title.style.transform = 'translate(0px, 0px) scale(1)'
-        letters.forEach((letter) => {
-          letter.style.transition = timing
-          letter.style.transform = face(0)
+        letters.forEach((letter, index) => {
+          const spin = index % 2 === 0 ? 'title-spin-pos' : 'title-spin-neg'
+          letter.style.animation = `${spin} 1.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) both`
         })
       })
     })

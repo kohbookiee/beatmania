@@ -43,6 +43,24 @@ function CameraRig({ orbitRef }) {
   return null
 }
 
+function AnimationClock() {
+  const { anim } = useCube()
+  const invalidate = useThree((state) => state.invalidate)
+
+  useEffect(() => {
+    if (!anim) return undefined
+    let frame = 0
+    const tick = () => {
+      invalidate()
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [anim, invalidate])
+
+  return null
+}
+
 function PointerRig({ cubeRef, orbitRef }) {
   const { camera, gl, invalidate } = useThree()
   const { cubies, anim, enqueue } = useCube()
@@ -114,7 +132,7 @@ function PointerRig({ cubeRef, orbitRef }) {
         gesture.cubieId = hit.cubieId
         gesture.normal = hit.normal
         gesture.point = hit.point
-      } else if (!hit) {
+      } else if (!hit && !window.matchMedia('(max-width: 760px)').matches) {
         gesture.mode = 'orbit'
         gesture.x = event.clientX
         gesture.y = event.clientY
@@ -164,7 +182,8 @@ function PointerRig({ cubeRef, orbitRef }) {
     element.addEventListener('pointermove', onPointerMove)
     element.addEventListener('pointerup', onPointerUp)
     element.addEventListener('pointercancel', onPointerUp)
-    element.addEventListener('wheel', onWheel, { passive: false })
+    const mobile = window.matchMedia('(max-width: 760px)')
+    if (!mobile.matches) element.addEventListener('wheel', onWheel, { passive: false })
     return () => {
       element.removeEventListener('pointerdown', onPointerDown)
       element.removeEventListener('pointermove', onPointerMove)
@@ -226,6 +245,7 @@ export default function CubeScene() {
             <RubiksCube />
           </group>
           <CameraRig orbitRef={orbitRef} />
+          <AnimationClock />
           <PointerRig cubeRef={cubeRef} orbitRef={orbitRef} />
           <Preload all />
         </Canvas>
