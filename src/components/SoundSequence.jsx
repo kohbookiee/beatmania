@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'react'
-import { loopBeat } from '../audio/permutationSound.js'
+import { useEffect, useRef } from 'react'
+import { loopBeat } from '../audio/engine.js'
 
 export default function SoundSequence({ events, playIndex = -1, playing = false }) {
   const columns = Math.max(events.length, 8)
-  const [cursorLeft, setCursorLeft] = useState('2%')
+  const cursorRef = useRef(null)
 
   useEffect(() => {
+    const cursor = cursorRef.current
+    if (!cursor) return undefined
     if (!playing || events.length === 0) {
-      setCursorLeft('2%')
+      cursor.style.left = '2%'
       return undefined
     }
     let frame = 0
@@ -15,7 +17,7 @@ export default function SoundSequence({ events, playIndex = -1, playing = false 
       const beat = loopBeat()
       const count = events.length
       const pos = beat < 0 ? 0 : ((beat % count) + count) % count
-      setCursorLeft(`${((pos + 0.35) / columns) * 100}%`)
+      cursor.style.left = `${((pos + 0.35) / columns) * 100}%`
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
@@ -32,7 +34,7 @@ export default function SoundSequence({ events, playIndex = -1, playing = false 
         {Array.from({ length: 8 }, (_, lane) => (
           <i key={lane} className="roll-lane" style={{ top: `${8 + lane * 11}%` }} />
         ))}
-        <i className="roll-cursor" style={{ left: cursorLeft }} />
+        <i ref={cursorRef} className="roll-cursor" style={{ left: '2%' }} />
         {events.map((event) => (
           <b
             key={`${event.order}-${event.cellId}`}

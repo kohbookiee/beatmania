@@ -65,8 +65,46 @@ export function displayAngle(pos, axis, partial) {
   return angle
 }
 
+function pushDot(dots, cubie, axis, partial, refreshColor) {
+  if (isHub(cubie.pos, axis)) return
+  const layer = cubie.pos[AXIS_INDEX[axis]]
+  const angle = displayAngle(cubie.pos, axis, partial)
+  const group = GROUPS[axis]
+  const radius = RING_RADIUS[layer]
+  let dot = dots[dots.length]
+  if (!dot) {
+    dot = { id: `${cubie.id}:${axis}` }
+    dots.push(dot)
+  }
+  if (refreshColor || dot.color == null) {
+    const sticker = stickerOnAxis(cubie, axis)
+    dot.n = sticker.n
+    dot.local = sticker.local
+    dot.color = STICKER_COLOR[sticker.local]
+  }
+  dot.cubieId = cubie.id
+  dot.axis = axis
+  dot.layer = layer
+  dot.angle = angle
+  dot.x = group.cx + Math.cos(angle) * radius
+  dot.y = group.cy + Math.sin(angle) * radius
+  dot.active = Boolean(partial && partial.axis === axis && layer === partial.layer)
+}
+
 export function orbitDots(cubies, partial) {
   const dots = []
+  for (const cubie of cubies) {
+    for (const axis of ['x', 'y', 'z']) pushDot(dots, cubie, axis, partial, true)
+  }
+  return dots
+}
+
+const liveDots = []
+let coloredCube = null
+
+export function layoutOrbitDots(cubies, partial) {
+  const refreshColor = cubies !== coloredCube
+  let index = 0
   for (const cubie of cubies) {
     for (const axis of ['x', 'y', 'z']) {
       if (isHub(cubie.pos, axis)) continue
@@ -74,23 +112,26 @@ export function orbitDots(cubies, partial) {
       const angle = displayAngle(cubie.pos, axis, partial)
       const group = GROUPS[axis]
       const radius = RING_RADIUS[layer]
-      const sticker = stickerOnAxis(cubie, axis)
-      dots.push({
-        id: `${cubie.id}:${axis}`,
-        cubieId: cubie.id,
-        axis,
-        layer,
-        angle,
-        n: sticker.n,
-        local: sticker.local,
-        color: STICKER_COLOR[sticker.local],
-        x: group.cx + Math.cos(angle) * radius,
-        y: group.cy + Math.sin(angle) * radius,
-        active: Boolean(partial && partial.axis === axis && layer === partial.layer),
-      })
+      let dot = liveDots[index]
+      if (!dot) {
+        dot = {}
+        liveDots[index] = dot
+      }
+      dot.id = `${cubie.id}:${axis}`
+      dot.axis = axis
+      if (refreshColor || dot.color == null) {
+        const sticker = stickerOnAxis(cubie, axis)
+        dot.color = STICKER_COLOR[sticker.local]
+      }
+      dot.x = group.cx + Math.cos(angle) * radius
+      dot.y = group.cy + Math.sin(angle) * radius
+      dot.active = Boolean(partial && partial.axis === axis && layer === partial.layer)
+      index += 1
     }
   }
-  return dots
+  liveDots.length = index
+  if (refreshColor) coloredCube = cubies
+  return liveDots
 }
 
 const RING_TURN = {

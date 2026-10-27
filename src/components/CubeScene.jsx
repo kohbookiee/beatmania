@@ -1,4 +1,3 @@
-import { Preload } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import * as THREE from 'three'
@@ -43,12 +42,12 @@ function CameraRig({ orbitRef }) {
   return null
 }
 
-function AnimationClock() {
+function AnimationClock({ active }) {
   const { anim } = useCube()
   const invalidate = useThree((state) => state.invalidate)
 
   useEffect(() => {
-    if (!anim) return undefined
+    if (!anim || !active) return undefined
     let frame = 0
     const tick = () => {
       invalidate()
@@ -56,7 +55,7 @@ function AnimationClock() {
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [anim, invalidate])
+  }, [active, anim, invalidate])
 
   return null
 }
@@ -196,7 +195,9 @@ function PointerRig({ cubeRef, orbitRef }) {
   return null
 }
 
-export default function CubeScene() {
+const PHONE = typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches
+
+export default function CubeScene({ active = true }) {
   const cubeRef = useRef(null)
   const orbitRef = useRef({
     theta: HOME_SPHERICAL.theta,
@@ -230,9 +231,9 @@ export default function CubeScene() {
       <div className="cube-viewport">
         <Canvas
           camera={{ position: [HOME.x, HOME.y, HOME.z], fov: FOV, near: 0.1, far: 100 }}
-          frameloop="demand"
-          dpr={[1, 1.25]}
-          gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+          frameloop={active ? 'demand' : 'never'}
+          dpr={PHONE ? 1 : [1, 1.25]}
+          gl={{ antialias: !PHONE, alpha: true, powerPreference: 'high-performance', stencil: false }}
           onCreated={({ gl }) => {
             gl.setClearColor(0x000000, 0)
             gl.toneMapping = THREE.NoToneMapping
@@ -245,9 +246,8 @@ export default function CubeScene() {
             <RubiksCube />
           </group>
           <CameraRig orbitRef={orbitRef} />
-          <AnimationClock />
+          <AnimationClock active={active} />
           <PointerRig cubeRef={cubeRef} orbitRef={orbitRef} />
-          <Preload all />
         </Canvas>
       </div>
     </>

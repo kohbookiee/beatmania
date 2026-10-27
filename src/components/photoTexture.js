@@ -15,28 +15,21 @@ const PLACEHOLDER = new THREE.CanvasTexture(placeholderCanvas)
 PLACEHOLDER.colorSpace = THREE.SRGBColorSpace
 
 function tileTexture(image, number) {
-  const size = 256
+  const size = 128
   const canvas = document.createElement('canvas')
   canvas.width = size
   canvas.height = size
-  const context = canvas.getContext('2d')
+  const context = canvas.getContext('2d', { willReadFrequently: false })
   const col = (number - 1) % 3
   const row = Math.floor((number - 1) / 3)
   const cell = image.width / 3
-  context.drawImage(
-    image,
-    col * cell,
-    row * cell,
-    cell,
-    cell,
-    0,
-    0,
-    size,
-    size,
-  )
+  context.drawImage(image, col * cell, row * cell, cell, cell, 0, 0, size, size)
   const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
-  texture.anisotropy = 8
+  texture.generateMipmaps = false
+  texture.minFilter = THREE.LinearFilter
+  texture.magFilter = THREE.LinearFilter
+  texture.anisotropy = 1
   texture.needsUpdate = true
   return texture
 }

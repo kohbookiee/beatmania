@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { loopBeat } from '../audio/permutationSound.js'
+import { loopBeat } from '../audio/engine.js'
 
 const LETTER = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 }
 
@@ -50,7 +50,7 @@ function yForStep(step, mid, gap) {
 export default function GeneratedScore({ events, playIndex = -1, playing = false, onToggle }) {
   const svgRef = useRef(null)
   const [size, setSize] = useState({ width: 1440, height: 180 })
-  const [cursorX, setCursorX] = useState(18)
+  const playheadRef = useRef(null)
   const placed = placeNotes(events, size.width, size.height)
   const staff = [2, 4, 6, 8, 10].map((step) => yForStep(step, placed.mid, placed.gap))
 
@@ -70,8 +70,11 @@ export default function GeneratedScore({ events, playIndex = -1, playing = false
   }, [events.length])
 
   useEffect(() => {
+    const line = playheadRef.current
+    if (!line) return undefined
     if (!playing || events.length === 0) {
-      setCursorX(18)
+      line.setAttribute('x1', '18')
+      line.setAttribute('x2', '18')
       return undefined
     }
     let frame = 0
@@ -83,7 +86,9 @@ export default function GeneratedScore({ events, playIndex = -1, playing = false
       const frac = pos - index
       const from = xAt(index, count, size.width)
       const to = xAt(index + 1, count, size.width)
-      setCursorX(from + (to - from) * frac)
+      const x = String(from + (to - from) * frac)
+      line.setAttribute('x1', x)
+      line.setAttribute('x2', x)
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
@@ -108,7 +113,7 @@ export default function GeneratedScore({ events, playIndex = -1, playing = false
         {placed.notes.map((note, index) => (
           <Note key={note.id} note={note} active={playIndex === index} mid={placed.mid} gap={placed.gap} />
         ))}
-        <line x1={cursorX} y1={staff[0]} x2={cursorX} y2={staff[4]} stroke="#ffe500" strokeWidth="1.5" />
+        <line ref={playheadRef} x1="18" y1={staff[0]} x2="18" y2={staff[4]} stroke="#ffe500" strokeWidth="1.5" />
       </svg>
       <p className="score-hint">Press space or click to play/pause</p>
     </section>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { BPM_MAX, BPM_MIN, getBpm, hitFor, setBpm, subscribeBpm } from '../audio/kit.js'
-import { followBpm } from '../audio/permutationSound.js'
+import { followBpm } from '../audio/engine.js'
 import { FACE_BUTTONS } from '../cube/cubeLogic.js'
 import { useCube } from '../cube/cubeState.jsx'
 

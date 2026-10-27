@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getBpm, hitForFace, setBpm, subscribeBpm } from '../audio/kit.js'
-import { followBpm, playHit, silence, startLoop, stopLoop, unlockAudio } from '../audio/permutationSound.js'
+import { followBpm, playHit, silence, startLoop, stopLoop, unlockAudio } from '../audio/engine.js'
 import { FACE_NAMES } from '../cube/cubeLogic.js'
 import { getNet, pathEvent } from '../cube/net.js'
 import { useCube } from '../cube/cubeState.jsx'

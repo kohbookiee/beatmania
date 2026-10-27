@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { preloadAudio } from './audio/engine.js'
 import CircleGraphic from './components/CircleGraphic.jsx'
 import ControlPanel from './components/ControlPanel.jsx'
 import CubeScene from './components/CubeScene.jsx'
@@ -13,6 +14,17 @@ function ScaleMark() {
 
 function Shell() {
   const [view, setView] = useState('cube')
+  const cubeView = view === 'cube'
+
+  useEffect(() => {
+    const start = () => preloadAudio()
+    if (window.requestIdleCallback) {
+      const id = window.requestIdleCallback(start, { timeout: 1200 })
+      return () => window.cancelIdleCallback(id)
+    }
+    const timer = window.setTimeout(start, 500)
+    return () => window.clearTimeout(timer)
+  }, [])
 
   return (
     <div className={view === 'puzzle' ? 'app is-puzzle' : 'app'}>
@@ -23,11 +35,11 @@ function Shell() {
             <main className="stage">
               <div className="band" aria-hidden="true" />
               <section className="cube-stage" aria-label="Number cube">
-                <CubeScene />
+                <CubeScene active={cubeView} />
               </section>
               <ScaleMark />
               <section className="graphic-stage" aria-label="Circle graphic">
-                <CircleGraphic />
+                <CircleGraphic active={cubeView} />
               </section>
             </main>
           </ControlPanel>

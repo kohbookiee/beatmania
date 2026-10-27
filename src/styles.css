@@ -1866,6 +1866,9 @@ body .bpm-name {
 
   .panel {
     padding: 6px;
+    background: rgba(0, 0, 0, 0.88);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .patch-actions .play-btn,

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { subscribePulse } from '../audio/pulse.js'
 import { useCube } from '../cube/cubeState.jsx'
-import { orbitDots, ringTurn } from '../cube/orbits.js'
+import { layoutOrbitDots, ringTurn } from '../cube/orbits.js'
 
 const RADII = [
   { layer: 1, radius: 122 },
@@ -30,14 +30,16 @@ function deform(cx, cy, centroid, squash, push) {
   return `translate(${ox.toFixed(2)} ${oy.toFixed(2)}) rotate(${angle.toFixed(2)}) scale(${sx.toFixed(4)} ${sy.toFixed(4)}) rotate(${(-angle).toFixed(2)}) translate(${(-cx).toFixed(2)} ${(-cy).toFixed(2)})`
 }
 
-export default function CircleGraphic({ scale = 1, spread = 1 }) {
+export default function CircleGraphic({ scale = 1, spread = 1, active = true }) {
   const { spinRef, cubiesRef, cubies, enqueue, playing } = useCube()
   const svgRef = useRef(null)
   const wrapRef = useRef(null)
   const dragRef = useRef(null)
   const playingRef = useRef(playing)
+  const activeRef = useRef(active)
   const wakeRef = useRef(() => {})
   playingRef.current = playing
+  activeRef.current = active
   const hitsRef = useRef([])
   const shift = (spread - 1) * 16
   const circles = CIRCLES.map((circle, index) => ({
@@ -124,7 +126,7 @@ export default function CircleGraphic({ scale = 1, spread = 1 }) {
       }
 
       const seen = new Set()
-      for (const dot of orbitDots(cube, partial)) {
+      for (const dot of layoutOrbitDots(cube, partial)) {
         seen.add(dot.id)
         let node = nodes.get(dot.id)
         const layer = layers.get(dot.axis)
@@ -137,10 +139,25 @@ export default function CircleGraphic({ scale = 1, spread = 1 }) {
           nodes.set(dot.id, node)
         }
         if (node.parentNode !== layer) layer.appendChild(node)
-        node.setAttribute('cx', dot.x.toFixed(2))
-        node.setAttribute('cy', dot.y.toFixed(2))
-        node.setAttribute('r', dot.active ? '5.1' : '4.15')
-        node.setAttribute('fill', dot.color)
+        const cx = dot.x.toFixed(1)
+        const cy = dot.y.toFixed(1)
+        const radius = dot.active ? '5.1' : '4.15'
+        if (node._cx !== cx) {
+          node._cx = cx
+          node.setAttribute('cx', cx)
+        }
+        if (node._cy !== cy) {
+          node._cy = cy
+          node.setAttribute('cy', cy)
+        }
+        if (node._r !== radius) {
+          node._r = radius
+          node.setAttribute('r', radius)
+        }
+        if (node._fill !== dot.color) {
+          node._fill = dot.color
+          node.setAttribute('fill', dot.color)
+        }
       }
       for (const [id, node] of nodes) {
         if (seen.has(id)) continue
@@ -151,6 +168,10 @@ export default function CircleGraphic({ scale = 1, spread = 1 }) {
     }
 
     const tick = () => {
+      if (!activeRef.current) {
+        running = false
+        return
+      }
       if (draw()) frame = requestAnimationFrame(tick)
       else running = false
     }
@@ -173,8 +194,8 @@ export default function CircleGraphic({ scale = 1, spread = 1 }) {
   }, [cubiesRef, spinRef])
 
   useEffect(() => {
-    wakeRef.current()
-  }, [cubies])
+    if (active) wakeRef.current()
+  }, [cubies, active])
 
   function localPoint(event) {
     const svg = svgRef.current

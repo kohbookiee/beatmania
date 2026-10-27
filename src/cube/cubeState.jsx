@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { hitFor, stepSeconds } from '../audio/kit.js'
-import { playHit, silence, startLoop, stopLoop, unlockAudio } from '../audio/permutationSound.js'
+import { playHit, silence, startLoop, stopLoop, unlockAudio } from '../audio/engine.js'
 import {
   MOVES,
   applyMove,
