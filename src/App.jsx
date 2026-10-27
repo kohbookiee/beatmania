@@ -26,6 +26,14 @@ function Shell() {
     return () => window.clearTimeout(timer)
   }, [])
 
+  useEffect(() => {
+    const color = view === 'puzzle' ? '#ffffff' : '#000000'
+    document.documentElement.style.background = color
+    document.body.style.background = color
+    const meta = document.querySelector('meta[name="theme-color"]')
+    if (meta) meta.setAttribute('content', color)
+  }, [view])
+
   return (
     <div className={view === 'puzzle' ? 'app is-puzzle' : 'app'}>
       <Header view={view} onView={setView} />
