@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
 
-const TITLE = 'beat mania'
+const TITLE = 'Rhythm mania'
 
 export default function Header({ view, onView }) {
   const titleRef = useRef(null)
@@ -70,7 +70,7 @@ export default function Header({ view, onView }) {
 
   return (
     <header className="header">
-      <h1 className="title is-arriving" ref={titleRef} aria-label="beat mania">
+      <h1 className="title is-arriving" ref={titleRef} aria-label={TITLE}>
         {TITLE.split('').map((letter, index) => (
           letter === ' '
             ? <span key={index} className="title-space">{'\u00A0'}</span>

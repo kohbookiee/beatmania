@@ -147,7 +147,7 @@ export default function ScorePage({ active = true }) {
 
   return (
     <div className="puzzle">
-      <TempoRail bpm={bpm} onChange={changeBpm} />
+      <TempoRail bpm={bpm} onChange={changeBpm} layout="bar" />
       <GeneratedScore events={events} playIndex={step} playing={playing} onToggle={() => toggleRef.current()} />
       <CubeNet path={path} activeId={activeId} onPath={changePath} />
       <SoundPath
