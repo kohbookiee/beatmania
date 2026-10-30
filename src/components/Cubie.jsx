@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { memo, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { SPACING } from '../cube/constants.js'
@@ -79,7 +79,7 @@ function Sticker({ sticker }) {
   )
 }
 
-export default function Cubie({ cubie }) {
+function Cubie({ cubie }) {
   const orientation = useMemo(() => rotationToQuaternion(cubie.rot), [cubie.rot])
   const position = [cubie.pos[0] * SPACING, cubie.pos[1] * SPACING, cubie.pos[2] * SPACING]
 
@@ -93,3 +93,5 @@ export default function Cubie({ cubie }) {
     </group>
   )
 }
+
+export default memo(Cubie)

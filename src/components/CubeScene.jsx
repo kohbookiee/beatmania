@@ -233,7 +233,7 @@ export default function CubeScene({ active = true }) {
           camera={{ position: [HOME.x, HOME.y, HOME.z], fov: FOV, near: 0.1, far: 100 }}
           frameloop={active ? 'demand' : 'never'}
           dpr={PHONE ? 1 : [1, 1.25]}
-          gl={{ antialias: !PHONE, alpha: true, powerPreference: 'high-performance', stencil: false }}
+          gl={{ antialias: !PHONE, alpha: true, powerPreference: PHONE ? 'low-power' : 'high-performance', stencil: false }}
           onCreated={({ gl }) => {
             gl.setClearColor(0x000000, 0)
             gl.toneMapping = THREE.NoToneMapping

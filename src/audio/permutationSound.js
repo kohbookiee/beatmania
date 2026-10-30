@@ -2,16 +2,20 @@ import * as Tone from 'tone'
 import { getBpm } from './kit.js'
 import { emitPulse } from './pulse.js'
 
+const PHONE = typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches
+
 const bus = new Tone.Compressor({ threshold: -14, ratio: 4, attack: 0.003, release: 0.1 })
 const limiter = new Tone.Limiter(-1.5).toDestination()
 bus.connect(limiter)
 
-const growl = new Tone.Distortion(0.72)
-const scream = new Tone.Distortion(0.48)
-const crush = new Tone.BitCrusher(5)
-growl.connect(bus)
-scream.connect(bus)
-crush.connect(bus)
+const growl = PHONE ? bus : new Tone.Distortion(0.72)
+const scream = PHONE ? bus : new Tone.Distortion(0.48)
+const crush = PHONE ? bus : new Tone.BitCrusher(5)
+if (!PHONE) {
+  growl.connect(bus)
+  scream.connect(bus)
+  crush.connect(bus)
+}
 
 const kick = new Tone.MembraneSynth({
   pitchDecay: 0.02,
@@ -130,9 +134,55 @@ function trigger(hit, time) {
   else setTimeout(() => emitPulse(hit), delay)
 }
 
+function audioContext() {
+  return Tone.getContext()
+}
+
+function nativeContext(context) {
+  const raw = context.rawContext || context
+  return raw._nativeAudioContext || raw
+}
+
+function isRunning() {
+  const context = audioContext()
+  const raw = context.rawContext || context
+  const native = nativeContext(context)
+  return context.state === 'running' || raw.state === 'running' || native.state === 'running'
+}
+
+function poke(context) {
+  const native = nativeContext(context)
+  try {
+    if (native.state !== 'running' && typeof native.resume === 'function') native.resume()
+  } catch {
+    /* resume still runs from the gesture below */
+  }
+  try {
+    const buffer = native.createBuffer(1, 1, native.sampleRate || 22050)
+    const source = native.createBufferSource()
+    source.buffer = buffer
+    source.connect(native.destination)
+    source.start(0)
+  } catch {
+    /* a rejected blip still leaves the resume call in the gesture */
+  }
+}
+
 export function unlockAudio() {
-  if (Tone.context.state === 'running') return Promise.resolve()
-  return Tone.start()
+  const context = audioContext()
+  if (isRunning()) return Promise.resolve()
+  poke(context)
+  const pending = typeof context.resume === 'function' ? context.resume() : Promise.resolve()
+  return new Promise((resolve) => {
+    let settled = false
+    const finish = () => {
+      if (settled) return
+      settled = true
+      resolve()
+    }
+    Promise.resolve(pending).then(finish).catch(finish)
+    window.setTimeout(finish, 300)
+  })
 }
 
 export function silence() {
@@ -146,11 +196,23 @@ export function silence() {
 
 export function playHit(hit, time) {
   if (!hit) return
-  if (Tone.context.state !== 'running') {
-    Tone.start().then(() => trigger(hit, Tone.now() + 0.02)).catch(() => {})
+  if (isRunning()) {
+    trigger(hit, time ?? Tone.now() + 0.01)
     return
   }
-  trigger(hit, time ?? Tone.now() + 0.01)
+  const context = audioContext()
+  poke(context)
+  if (typeof context.resume === 'function') Promise.resolve(context.resume()).catch(() => {})
+  let tries = 0
+  const fire = () => {
+    if (isRunning()) {
+      trigger(hit, Tone.now() + 0.02)
+      return
+    }
+    tries += 1
+    if (tries < 12) window.setTimeout(fire, 40)
+  }
+  fire()
 }
 
 export function followBpm(value) {

@@ -17,6 +17,7 @@ const CIRCLES = [
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 const AXES = ['x', 'y', 'z']
+const PHONE = typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches
 
 function deform(cx, cy, centroid, squash, push) {
   const dx = cx - centroid.x
@@ -167,11 +168,17 @@ export default function CircleGraphic({ scale = 1, spread = 1, active = true }) 
       return Boolean(partial) || hitsRef.current.length > 0
     }
 
-    const tick = () => {
+    let drawnAt = 0
+    const tick = (now) => {
       if (!activeRef.current) {
         running = false
         return
       }
+      if (PHONE && now - drawnAt < 32) {
+        frame = requestAnimationFrame(tick)
+        return
+      }
+      drawnAt = now
       if (draw()) frame = requestAnimationFrame(tick)
       else running = false
     }

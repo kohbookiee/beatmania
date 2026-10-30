@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { preloadAudio } from './audio/engine.js'
+import { preloadAudio, unlockAudio } from './audio/engine.js'
 import CircleGraphic from './components/CircleGraphic.jsx'
 import ControlPanel from './components/ControlPanel.jsx'
 import CubeScene from './components/CubeScene.jsx'
@@ -24,6 +24,18 @@ function Shell() {
     }
     const timer = window.setTimeout(start, 500)
     return () => window.clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    const unlock = () => { unlockAudio() }
+    window.addEventListener('pointerdown', unlock, { capture: true })
+    window.addEventListener('touchstart', unlock, { capture: true })
+    window.addEventListener('keydown', unlock, { capture: true })
+    return () => {
+      window.removeEventListener('pointerdown', unlock, { capture: true })
+      window.removeEventListener('touchstart', unlock, { capture: true })
+      window.removeEventListener('keydown', unlock, { capture: true })
+    }
   }, [])
 
   useEffect(() => {

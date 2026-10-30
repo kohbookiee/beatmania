@@ -1,5 +1,9 @@
 let mod = null
 let loading = null
+let speaker = null
+let speakerOpen = false
+
+const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
 
 function ready() {
   if (!loading) {
@@ -11,15 +15,36 @@ function ready() {
   return loading
 }
 
+function unlockSpeaker() {
+  if (typeof Audio === 'undefined') return
+  if (!speaker) {
+    speaker = new Audio(SILENT_WAV)
+    speaker.playsInline = true
+    speaker.setAttribute('playsinline', 'true')
+    speaker.setAttribute('webkit-playsinline', 'true')
+    speaker.preload = 'auto'
+  }
+  if (speakerOpen) return
+  const pending = speaker.play()
+  if (pending && typeof pending.then === 'function') {
+    pending.then(() => { speakerOpen = true }).catch(() => {})
+  } else {
+    speakerOpen = true
+  }
+}
+
 export function preloadAudio() {
   return ready()
 }
 
 export function unlockAudio() {
+  unlockSpeaker()
+  if (mod) return Promise.resolve(mod.unlockAudio())
   return ready().then((api) => api.unlockAudio())
 }
 
 export function playHit(hit, time) {
+  unlockSpeaker()
   if (mod) return mod.playHit(hit, time)
   return ready().then((api) => api.playHit(hit, time))
 }
