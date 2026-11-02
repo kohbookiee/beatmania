@@ -140,6 +140,7 @@ body .title {
 .header:has(.title.is-arriving) {
   position: relative;
   z-index: 50;
+  overflow: visible;
 }
 
 @keyframes title-spin-pos {
