@@ -2092,8 +2092,8 @@ body:has(.app.is-puzzle) {
   }
 
   .view-tab {
-    font-size: 13px;
-    padding: 8px 8px 7px;
+    font-size: 11px;
+    padding: 5px 6px 4px;
   }
 
   .app:not(.is-puzzle) .stage-switch,

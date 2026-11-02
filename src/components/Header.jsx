@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
 
-const TITLE = 'Rhythm mania'
+const TITLE = 'rhythm mania'
 
 export default function Header({ view, onView }) {
   const titleRef = useRef(null)
