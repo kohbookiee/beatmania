@@ -168,7 +168,49 @@ function poke(context) {
   }
 }
 
+function isiOS() {
+  if (typeof navigator === 'undefined') return false
+  const agent = navigator.userAgent || ''
+  return /iPad|iPhone|iPod/.test(agent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+}
+
+let iosOutput = null
+
+function openIosOutput() {
+  if (!isiOS()) return
+  if (iosOutput) {
+    if (iosOutput.paused) {
+      const pending = iosOutput.play()
+      if (pending && typeof pending.catch === 'function') pending.catch(() => {})
+    }
+    return
+  }
+  const output = limiter.output || limiter
+  const nodeContext = output.context
+  if (!nodeContext || typeof nodeContext.createMediaStreamDestination !== 'function') return
+  const streamDest = nodeContext.createMediaStreamDestination()
+  try {
+    output.disconnect()
+    output.connect(streamDest)
+  } catch {
+    try { limiter.toDestination() } catch { /* the original speaker route stays */ }
+    return
+  }
+  const audio = document.createElement('audio')
+  audio.playsInline = true
+  audio.setAttribute('playsinline', 'true')
+  audio.setAttribute('webkit-playsinline', 'true')
+  audio.setAttribute('aria-hidden', 'true')
+  audio.srcObject = streamDest.stream
+  audio.style.display = 'none'
+  if (document.body) document.body.appendChild(audio)
+  iosOutput = audio
+  const pending = audio.play()
+  if (pending && typeof pending.catch === 'function') pending.catch(() => {})
+}
+
 export function unlockAudio() {
+  openIosOutput()
   const context = audioContext()
   if (isRunning()) return Promise.resolve()
   poke(context)
@@ -196,6 +238,7 @@ export function silence() {
 
 export function playHit(hit, time) {
   if (!hit) return
+  openIosOutput()
   if (isRunning()) {
     trigger(hit, time ?? Tone.now() + 0.01)
     return

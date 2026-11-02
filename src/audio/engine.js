@@ -3,8 +3,6 @@ let loading = null
 let speaker = null
 let speakerOpen = false
 
-const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='
-
 function ready() {
   if (!loading) {
     loading = import('./permutationSound.js').then((loaded) => {
@@ -15,16 +13,46 @@ function ready() {
   return loading
 }
 
+function silentWavUrl() {
+  const rate = 8000
+  const samples = rate
+  const buffer = new ArrayBuffer(44 + samples * 2)
+  const view = new DataView(buffer)
+  const text = (offset, value) => {
+    for (let i = 0; i < value.length; i += 1) view.setUint8(offset + i, value.charCodeAt(i))
+  }
+  text(0, 'RIFF')
+  view.setUint32(4, 36 + samples * 2, true)
+  text(8, 'WAVE')
+  text(12, 'fmt ')
+  view.setUint32(16, 16, true)
+  view.setUint16(20, 1, true)
+  view.setUint16(22, 1, true)
+  view.setUint32(24, rate, true)
+  view.setUint32(28, rate * 2, true)
+  view.setUint16(32, 2, true)
+  view.setUint16(34, 16, true)
+  text(36, 'data')
+  view.setUint32(40, samples * 2, true)
+  for (let i = 0; i < samples; i += 1) view.setInt16(44 + i * 2, i % 200 === 0 ? 1 : 0, true)
+  return URL.createObjectURL(new Blob([buffer], { type: 'audio/wav' }))
+}
+
 function unlockSpeaker() {
   if (typeof Audio === 'undefined') return
   if (!speaker) {
-    speaker = new Audio(SILENT_WAV)
+    speaker = document.createElement('audio')
+    speaker.src = silentWavUrl()
+    speaker.loop = true
     speaker.playsInline = true
     speaker.setAttribute('playsinline', 'true')
     speaker.setAttribute('webkit-playsinline', 'true')
     speaker.preload = 'auto'
+    speaker.setAttribute('aria-hidden', 'true')
+    speaker.style.display = 'none'
+    if (document.body) document.body.appendChild(speaker)
   }
-  if (speakerOpen) return
+  if (speakerOpen && !speaker.paused) return
   const pending = speaker.play()
   if (pending && typeof pending.then === 'function') {
     pending.then(() => { speakerOpen = true }).catch(() => {})

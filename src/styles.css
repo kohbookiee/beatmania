@@ -1735,6 +1735,10 @@ body:has(.app.is-puzzle) {
   white-space: nowrap;
 }
 
+.score-hint-phone {
+  display: none;
+}
+
 .puzzle-caption span,
 .path-meta dt {
   color: #111111;
@@ -2070,20 +2074,15 @@ body:has(.app.is-puzzle) {
     max-width: calc(100% - 32px);
     margin-inline: auto;
     overflow-x: clip;
-    padding: max(10px, env(safe-area-inset-top)) 0 2px;
-    gap: 4px;
+    padding: max(2px, calc(env(safe-area-inset-top) - 8px)) 0 0;
+    gap: 2px;
     text-align: center;
   }
 
-  .app:not(.is-puzzle) .header {
-    padding: max(2px, calc(env(safe-area-inset-top) - 8px)) 0 0;
-    gap: 2px;
-  }
-
   body .title {
-    font-size: 32px;
-    padding: 6px 2px;
-    -webkit-text-stroke: 4px #d8d8d8;
+    font-size: 28px;
+    padding: 5px 2px;
+    -webkit-text-stroke: 3px #d8d8d8;
   }
 
   .view-nav {
@@ -2501,6 +2500,14 @@ body:has(.app.is-puzzle) {
     padding: 0 12px 8px;
     text-align: left;
     white-space: normal;
+  }
+
+  .score-hint-wide {
+    display: none;
+  }
+
+  .score-hint-phone {
+    display: inline;
   }
 
   .puzzle-score {

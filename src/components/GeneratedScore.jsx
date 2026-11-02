@@ -115,7 +115,10 @@ export default function GeneratedScore({ events, playIndex = -1, playing = false
         ))}
         <line ref={playheadRef} x1="18" y1={staff[0]} x2="18" y2={staff[4]} stroke="#ffe500" strokeWidth="1.5" />
       </svg>
-      <p className="score-hint">Press space or click to play/pause</p>
+      <p className="score-hint">
+        <span className="score-hint-wide">Press space or click to play/pause</span>
+        <span className="score-hint-phone">Press click to play/pause</span>
+      </p>
     </section>
   )
 }
