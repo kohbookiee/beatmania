@@ -141,6 +141,12 @@ body .title {
   position: relative;
   z-index: 50;
   overflow: visible;
+  perspective: 1400px;
+}
+
+.app:not(.is-puzzle):has(.title.is-arriving),
+.app.is-puzzle:has(.title.is-arriving) {
+  overflow: visible;
 }
 
 @keyframes title-spin-pos {

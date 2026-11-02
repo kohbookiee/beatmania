@@ -8,98 +8,144 @@ export default function Header({ view, onView }) {
   useLayoutEffect(() => {
     const title = titleRef.current
     if (!title) return undefined
-    let letters = [...title.querySelectorAll('.title-letter')]
     let cancelled = false
-    let hold = 0
+    let played = false
+    let queued = false
     let settleTimer = 0
+    const animations = []
+    const easing = 'cubic-bezier(0.45, 0.05, 0.55, 0.95)'
+
+    const clearMotion = () => {
+      animations.splice(0).forEach((anim) => anim.cancel())
+      title.style.visibility = ''
+      title.style.transform = ''
+      title.style.transformStyle = ''
+      title.style.willChange = ''
+    }
 
     const settle = () => {
-      title.style.transition = ''
-      title.style.transform = ''
+      clearMotion()
       title.classList.remove('is-arriving', 'is-intro')
       title.textContent = TITLE
     }
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reduce) {
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       settle()
       return undefined
     }
 
-    const reset = () => {
-      title.style.transition = 'none'
-      title.style.transform = ''
-      letters.forEach((letter) => {
-        letter.style.transition = 'none'
-        letter.style.animation = 'none'
-        letter.style.transform = 'none'
-      })
+    // Keep the resting title off the first paint. iOS otherwise shows the
+    // finished pose and drops the transition that was queued during load.
+    title.style.visibility = 'hidden'
+
+    const ensureLetters = () => {
+      if (title.querySelector('.title-letter')) return
+      title.classList.add('is-arriving')
+      title.textContent = ''
+      for (const letter of TITLE) {
+        const span = document.createElement('span')
+        span.className = letter === ' ' ? 'title-space' : 'title-letter'
+        span.textContent = letter === ' ' ? '\u00A0' : letter
+        title.appendChild(span)
+      }
     }
 
     const play = () => {
-      if (cancelled || !title.isConnected) return
-      letters = [...title.querySelectorAll('.title-letter')]
-      reset()
+      if (cancelled || played || !title.isConnected) return
+      played = true
+      ensureLetters()
+      const letters = [...title.querySelectorAll('.title-letter')]
       title.classList.add('is-arriving')
-      title.classList.add('is-intro')
-      const from = title.getBoundingClientRect()
-      title.classList.remove('is-intro')
-      const to = title.getBoundingClientRect()
-      const dx = from.left + from.width / 2 - (to.left + to.width / 2)
-      const dy = from.top + from.height / 2 - (to.top + to.height / 2)
-      const room = (window.innerWidth * 0.86) / Math.max(1, to.width)
-      const scale = Math.min(from.width / Math.max(1, to.width), room)
-      const fromTransform = `translate(${dx}px, ${dy}px) scale(${scale})`
-      title.style.transition = 'none'
-      title.style.transform = fromTransform
+      title.style.transform = 'none'
+      title.style.transformStyle = 'flat'
       void title.offsetWidth
+      const to = title.getBoundingClientRect()
+      if (to.width < 1) {
+        settle()
+        return
+      }
+      const fit = (window.innerWidth * 0.86) / to.width
+      const scale = Math.min(2.7, fit)
+      const dx = window.innerWidth / 2 - (to.left + to.width / 2)
+      const dy = window.innerHeight / 2 - (to.top + to.height / 2)
+      const fromTransform = `translate(${dx}px, ${dy}px) scale(${scale})`
+      title.style.willChange = 'transform'
+      title.style.transform = fromTransform
+      title.style.visibility = 'visible'
 
       const begin = () => {
         if (cancelled || !title.isConnected) return
-        title.style.transition = 'transform 1.8s cubic-bezier(0.45, 0.05, 0.55, 0.95)'
-        title.style.transform = 'translate(0px, 0px) scale(1)'
-        letters.forEach((letter, index) => {
-          const spin = index % 2 === 0 ? 'title-spin-pos' : 'title-spin-neg'
-          letter.style.animation = 'none'
-          void letter.offsetWidth
-          letter.style.animation = `${spin} 1.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) both`
+        try {
+          const move = title.animate(
+            [{ transform: fromTransform }, { transform: 'translate(0px, 0px) scale(1)' }],
+            { duration: 1800, easing, fill: 'forwards' },
+          )
+          animations.push(move)
+          letters.forEach((letter, index) => {
+            const turn = index % 2 === 0 ? 180 : -180
+            animations.push(letter.animate(
+              [
+                { transform: 'rotateY(0deg)' },
+                { transform: `rotateY(${turn}deg)`, offset: 0.5 },
+                { transform: `rotateY(${turn * 2}deg)` },
+              ],
+              { duration: 1800, easing },
+            ))
+          })
+        } catch {
+          settle()
+          return
+        }
+        requestAnimationFrame(() => {
+          for (const anim of animations) {
+            if (anim.playState === 'finished' || anim.currentTime > 80) {
+              anim.currentTime = 0
+              anim.play()
+            }
+          }
         })
-        settleTimer = window.setTimeout(settle, 1920)
+        settleTimer = window.setTimeout(settle, 1900)
       }
 
-      // iOS paints a reloaded page after queued animation frames, so a short
-      // timeout is what actually leaves the opening pose on screen.
-      hold = window.setTimeout(begin, 50)
+      requestAnimationFrame(() => requestAnimationFrame(begin))
     }
 
-    const ready = document.fonts?.load?.('400 16px "Inktera Demo"') ?? Promise.resolve()
-    ready.then(play, play)
+    const arm = () => {
+      if (cancelled || played || queued) return
+      queued = true
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        queued = false
+        play()
+      }))
+    }
 
     const onPageShow = (event) => {
-      if (!event.persisted || cancelled) return
-      window.clearTimeout(hold)
-      window.clearTimeout(settleTimer)
-      if (!title.querySelector('.title-letter')) {
-        title.classList.add('is-arriving')
-        title.textContent = ''
-        TITLE.split('').forEach((letter) => {
-          const span = document.createElement('span')
-          span.className = letter === ' ' ? 'title-space' : 'title-letter'
-          span.textContent = letter === ' ' ? '\u00A0' : letter
-          title.appendChild(span)
-        })
+      if (cancelled) return
+      if (event.persisted) {
+        played = false
+        queued = false
+        window.clearTimeout(settleTimer)
+        clearMotion()
+        ensureLetters()
+        title.style.visibility = 'hidden'
       }
-      play()
+      arm()
     }
+
     window.addEventListener('pageshow', onPageShow)
+    if (document.readyState === 'complete') arm()
+    else window.addEventListener('load', arm, { once: true })
+    const safety = window.setTimeout(arm, 600)
 
     return () => {
       cancelled = true
-      window.clearTimeout(hold)
       window.clearTimeout(settleTimer)
+      window.clearTimeout(safety)
       window.removeEventListener('pageshow', onPageShow)
+      window.removeEventListener('load', arm)
+      clearMotion()
       if (!title.isConnected || !title.querySelector('.title-letter')) return
       title.classList.add('is-arriving')
-      reset()
       title.classList.remove('is-intro')
     }
   }, [])
